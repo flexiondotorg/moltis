@@ -6,8 +6,8 @@ use crate::state::GatewayState;
 
 use super::{
     super::{
-        is_channel_command_authorized, operator_denied_message, resolve_channel_session,
-        resolve_sender_role,
+        is_channel_command_authorized, is_private_instance_account, operator_denied_message,
+        resolve_channel_session, resolve_sender_role,
     },
     control_handlers, quick_actions, session_handlers,
 };
@@ -89,7 +89,8 @@ pub(in crate::channel_events) async fn dispatch_command(
         .map(|definition| definition.privilege())
         .ok_or_else(|| ChannelError::invalid_input(format!("unknown command: /{cmd}")))?;
     let sender_role = resolve_sender_role(state, &reply_to.account_id, sender_id).await;
-    if !is_channel_command_authorized(privilege, sender_role, &reply_to) {
+    let private_instance = is_private_instance_account(state, &reply_to.account_id).await;
+    if !is_channel_command_authorized(privilege, sender_role, &reply_to, private_instance) {
         return Err(ChannelError::invalid_input(operator_denied_message(
             &format!("/{cmd}"),
             sender_id,

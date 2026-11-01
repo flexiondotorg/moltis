@@ -156,6 +156,19 @@ async fn resolve_sender_role(
     moltis_channels::operators::resolve_sender_role(sender_id, config.operators())
 }
 
+pub(in crate::channel_events) async fn is_private_instance_account(
+    state: &Arc<GatewayState>,
+    account_id: &str,
+) -> bool {
+    let Some(ref registry) = state.services.channel_registry else {
+        return false;
+    };
+    let Some(config) = registry.account_config(account_id).await else {
+        return false;
+    };
+    config.private_instance()
+}
+
 /// Read the account's untrusted-turn ceiling. A missing registry or an unknown
 /// account falls back to the defaults, which are the unconfigured behaviour.
 async fn resolve_untrusted_ceiling(
@@ -218,11 +231,12 @@ fn is_channel_command_authorized(
     privilege: moltis_channels::commands::CommandPrivilege,
     role: ChannelSenderRole,
     reply_to: &ChannelReplyTarget,
+    private_instance: bool,
 ) -> bool {
     match privilege {
         moltis_channels::commands::CommandPrivilege::Public => true,
         moltis_channels::commands::CommandPrivilege::OperatorDirect => {
-            is_trusted_channel_turn(role, reply_to)
+            private_instance || is_trusted_channel_turn(role, reply_to)
         },
     }
 }
@@ -233,6 +247,9 @@ async fn is_sender_authorized_for_target(
     reply_to: &ChannelReplyTarget,
     sender_id: Option<&str>,
 ) -> bool {
+    if is_private_instance_account(state, &reply_to.account_id).await {
+        return true;
+    }
     let role = resolve_sender_role(state, &reply_to.account_id, sender_id).await;
     is_trusted_channel_turn(role, reply_to)
 }

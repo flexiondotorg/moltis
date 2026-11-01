@@ -23,10 +23,8 @@ pub(in crate::channel_events) async fn dispatch_to_chat(
         // Privilege is resolved per inbound message, never per session:
         // command mode is shared by everyone in the chat, so an operator
         // enabling it must not hand the shell to the other participants.
-        let sender_role =
-            resolve_sender_role(state, &reply_to.account_id, meta.sender_id.as_deref()).await;
-
-        let trusted_channel_turn = is_trusted_channel_turn(sender_role, &reply_to);
+        let trusted_channel_turn =
+            is_sender_authorized_for_target(state, &reply_to, meta.sender_id.as_deref()).await;
         let (untrusted_audience, untrusted_tools) =
             resolve_untrusted_ceiling(state, &reply_to.account_id).await;
 

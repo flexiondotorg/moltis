@@ -56,6 +56,13 @@ pub trait ChannelConfigView: Send + Sync + std::fmt::Debug {
         &[]
     }
 
+    /// Whether this account connects to a private instance where every
+    /// sender and room that passes channel access gating is trusted with
+    /// private workspace context and configured tools.
+    fn private_instance(&self) -> bool {
+        false
+    }
+
     /// Tool audience ceiling for untrusted turns on this account. Raise it to
     /// let a known group reach MCP and other trusted tools, then narrow with
     /// the tool policy layers.

@@ -224,12 +224,14 @@ fn discord_dm_forwarded_by_adapter_is_direct_and_guild_stays_shared() {
     assert!(is_channel_command_authorized(
         moltis_channels::commands::CommandPrivilege::OperatorDirect,
         ChannelSenderRole::Operator,
-        &dm
+        &dm,
+        false,
     ));
     assert!(!is_channel_command_authorized(
         moltis_channels::commands::CommandPrivilege::OperatorDirect,
         ChannelSenderRole::Operator,
-        &guild
+        &guild,
+        false,
     ));
 }
 
@@ -297,7 +299,7 @@ fn command_authorization_matches_privilege_and_conversation_scope() {
     for command in moltis_channels::commands::all_commands() {
         let privilege = command.privilege();
         assert_eq!(
-            is_channel_command_authorized(privilege, ChannelSenderRole::Guest, &direct),
+            is_channel_command_authorized(privilege, ChannelSenderRole::Guest, &direct, false),
             matches!(
                 privilege,
                 moltis_channels::commands::CommandPrivilege::Public
@@ -306,7 +308,7 @@ fn command_authorization_matches_privilege_and_conversation_scope() {
             command.name
         );
         assert_eq!(
-            is_channel_command_authorized(privilege, ChannelSenderRole::Operator, &shared),
+            is_channel_command_authorized(privilege, ChannelSenderRole::Operator, &shared, false),
             matches!(
                 privilege,
                 moltis_channels::commands::CommandPrivilege::Public
@@ -315,8 +317,13 @@ fn command_authorization_matches_privilege_and_conversation_scope() {
             command.name
         );
         assert!(
-            is_channel_command_authorized(privilege, ChannelSenderRole::Operator, &direct),
+            is_channel_command_authorized(privilege, ChannelSenderRole::Operator, &direct, false),
             "operator direct-chat authorization drifted for /{}",
+            command.name
+        );
+        assert!(
+            is_channel_command_authorized(privilege, ChannelSenderRole::Guest, &shared, true),
+            "private-instance authorization drifted for /{}",
             command.name
         );
     }
@@ -478,6 +485,7 @@ fn telegram_config_controls_shared_turn_tool_ceiling() {
                 moltis_channels::commands::CommandPrivilege::OperatorDirect,
                 role,
                 &target,
+                false,
             ));
 
             let mut params = serde_json::json!({"_private_context": true});

@@ -133,6 +133,11 @@ pub struct MatrixAccountConfig {
     #[serde(default)]
     pub operators: Vec<String>,
 
+    /// Trust all allowlisted rooms, DMs, and threads on this private Matrix
+    /// homeserver with private workspace context and configured tools.
+    #[serde(default)]
+    pub private_instance: bool,
+
     /// Auto-join rooms on invite.
     pub auto_join: AutoJoinPolicy,
 
@@ -197,6 +202,7 @@ impl Default for MatrixAccountConfig {
             room_allowlist: Vec::new(),
             user_allowlist: Vec::new(),
             operators: Vec::new(),
+            private_instance: false,
             auto_join: AutoJoinPolicy::Always,
             model: None,
             model_provider: None,
@@ -231,6 +237,7 @@ impl std::fmt::Debug for MatrixAccountConfig {
             .field("room_allowlist", &self.room_allowlist)
             .field("user_allowlist", &self.user_allowlist)
             .field("operators", &self.operators)
+            .field("private_instance", &self.private_instance)
             .field("auto_join", &self.auto_join)
             .field("model", &self.model)
             .field("model_provider", &self.model_provider)
@@ -254,7 +261,7 @@ pub struct RedactedConfig<'a>(pub &'a MatrixAccountConfig);
 impl Serialize for RedactedConfig<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let c = self.0;
-        let mut count = 17;
+        let mut count = 18;
         count += c.auth_mode.is_some() as usize;
         count += c.password.is_some() as usize;
         count += c.user_id.is_some() as usize;
@@ -292,6 +299,7 @@ impl Serialize for RedactedConfig<'_> {
         s.serialize_field("room_allowlist", &c.room_allowlist)?;
         s.serialize_field("user_allowlist", &c.user_allowlist)?;
         s.serialize_field("operators", &c.operators)?;
+        s.serialize_field("private_instance", &c.private_instance)?;
         s.serialize_field("auto_join", &c.auto_join)?;
         if c.model.is_some() {
             s.serialize_field("model", &c.model)?;
@@ -328,6 +336,10 @@ impl ChannelConfigView for MatrixAccountConfig {
 
     fn operators(&self) -> &[String] {
         &self.operators
+    }
+
+    fn private_instance(&self) -> bool {
+        self.private_instance
     }
 
     fn group_allowlist(&self) -> &[String] {
@@ -608,5 +620,26 @@ mod tests {
             serde_json::to_value(MatrixAuthMode::Oidc).unwrap_or_else(|error| panic!("{error}")),
             "oidc"
         );
+    }
+
+    #[test]
+    fn private_instance_defaults_to_false_and_round_trips() {
+        let default_cfg = MatrixAccountConfig::default();
+        assert!(!default_cfg.private_instance);
+        assert!(!ChannelConfigView::private_instance(&default_cfg));
+
+        let json = serde_json::json!({
+            "homeserver": "https://matrix.example.com",
+            "access_token": "syt_test_token",
+            "private_instance": true,
+        });
+        let cfg: MatrixAccountConfig =
+            serde_json::from_value(json).unwrap_or_else(|error| panic!("parse failed: {error}"));
+        assert!(cfg.private_instance);
+        assert!(ChannelConfigView::private_instance(&cfg));
+
+        let redacted = serde_json::to_value(RedactedConfig(&cfg))
+            .unwrap_or_else(|error| panic!("redacted serialize failed: {error}"));
+        assert_eq!(redacted["private_instance"], true);
     }
 }

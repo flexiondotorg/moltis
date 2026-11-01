@@ -10,9 +10,8 @@ use crate::{
 };
 
 use super::super::{
-    apply_untrusted_channel_context, default_channel_session_key, is_trusted_channel_turn,
-    resolve_channel_agent_id, resolve_channel_session, resolve_sender_role,
-    start_channel_typing_loop,
+    apply_untrusted_channel_context, default_channel_session_key, is_sender_authorized_for_target,
+    resolve_channel_agent_id, resolve_channel_session, start_channel_typing_loop,
 };
 
 pub(in crate::channel_events) async fn dispatch_to_chat_with_attachments(
@@ -149,9 +148,7 @@ pub(in crate::channel_events) async fn dispatch_to_chat_with_attachments(
 
     // Same privilege gate as the text path: an image or voice note from a
     // guest must not hand the agent host-reaching tools either.
-    let sender_role =
-        resolve_sender_role(state, &reply_to.account_id, meta.sender_id.as_deref()).await;
-    if !is_trusted_channel_turn(sender_role, &reply_to) {
+    if !is_sender_authorized_for_target(state, &reply_to, meta.sender_id.as_deref()).await {
         apply_untrusted_channel_context(&mut params);
     }
 
